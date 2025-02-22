@@ -2,9 +2,13 @@ from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.route("/api", methods=['GET'])
 def home():
     return jsonify({"message": "Hello from Flask on Vercel!"})
 
-def handler(event, context):
-    return app(event, context)
+@app.route("/", methods=['GET'])
+def root():
+    return jsonify({"message": "Welcome to the API"})
+
+if __name__ == '__main__':
+    app.run()
