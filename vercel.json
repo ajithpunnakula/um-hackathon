@@ -6,6 +6,10 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/video-transcript.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
