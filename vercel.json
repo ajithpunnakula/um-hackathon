@@ -16,8 +16,16 @@
   ],
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "/api/(.*)",
       "dest": "api/index.py"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/frontend/dist/assets/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/dist/$1"
     }
   ]
 }
