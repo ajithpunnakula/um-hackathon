@@ -83,15 +83,15 @@ def get_transcript_with_timestamps(youtube_url):
     except Exception as e:
         return f"Error: {str(e)}"
 
-# def main():
-#     if not YOUTUBE_API_KEY:
-#         print("Error: YouTube API key not found in environment variables")
-#         return
+def main():
+    if not YOUTUBE_API_KEY:
+        print("Error: YouTube API key not found in environment variables")
+        return
 
-#     youtube_url = input("Enter YouTube video URL: ")
-#     result = get_transcript_with_timestamps(youtube_url)
-#     print("\nVideo Information and Transcript:")
-#     print(result)
+    youtube_url = input("Enter YouTube video URL: ")
+    result = get_transcript_with_timestamps(youtube_url)
+    print("\nVideo Information and Transcript:")
+    print(result)
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
