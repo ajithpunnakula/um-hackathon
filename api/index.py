@@ -1,6 +1,10 @@
 from flask import Flask, jsonify, request
 import os
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -30,21 +34,35 @@ def process_url():
 
 @app.route("/api/transcript", methods=['POST'])
 def get_transcript():
-    data = request.get_json()
+    logger.info("Received request to /api/transcript")
+    logger.info(f"Request headers: {dict(request.headers)}")
     
-    if not data or 'url' not in data:
-        return jsonify({"error": "YouTube URL is required"}), 400
+    try:
+        data = request.get_json()
+        logger.info(f"Request data: {data}")
         
-    youtube_url = data['url']
-    transcript = get_transcript_with_timestamps(youtube_url)
-    
-    if isinstance(transcript, str) and transcript.startswith("Error"):
-        return jsonify({"error": transcript}), 400
-    
-    return jsonify({
-        "status": "success",
-        "transcript": transcript
-    })
+        if not data or 'url' not in data:
+            logger.error("No URL provided in request")
+            return jsonify({"error": "YouTube URL is required"}), 400
+            
+        youtube_url = data['url']
+        logger.info(f"Processing URL: {youtube_url}")
+        
+        transcript = get_transcript_with_timestamps(youtube_url)
+        logger.info("Transcript processing completed")
+        
+        if isinstance(transcript, str) and transcript.startswith("Error"):
+            logger.error(f"Error processing transcript: {transcript}")
+            return jsonify({"error": transcript}), 400
+        
+        logger.info("Successfully processed transcript")
+        return jsonify({
+            "status": "success",
+            "transcript": transcript
+        })
+    except Exception as e:
+        logger.error(f"Error in get_transcript: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
 from youtube_transcript_api import YouTubeTranscriptApi
