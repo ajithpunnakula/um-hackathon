@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+from .video_transcript import get_transcript_with_timestamps
 
 app = Flask(__name__)
 
@@ -24,6 +25,24 @@ def process_url():
         "status": "success",
         "url": url,
         "message": f"Successfully received URL: {url}"
+    })
+
+@app.route("/api/transcript", methods=['POST'])
+def get_transcript():
+    data = request.get_json()
+    
+    if not data or 'url' not in data:
+        return jsonify({"error": "YouTube URL is required"}), 400
+        
+    youtube_url = data['url']
+    transcript = get_transcript_with_timestamps(youtube_url)
+    
+    if isinstance(transcript, str) and transcript.startswith("Error"):
+        return jsonify({"error": transcript}), 400
+    
+    return jsonify({
+        "status": "success",
+        "transcript": transcript
     })
 
 if __name__ == '__main__':

@@ -3,12 +3,8 @@ from urllib.parse import urlparse, parse_qs
 from googleapiclient.discovery import build
 from datetime import datetime
 import os
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-# Get API key from environment variables
+    # Get API key from environment variables
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
 
 def get_video_id(youtube_url):
@@ -87,15 +83,15 @@ def get_transcript_with_timestamps(youtube_url):
     except Exception as e:
         return f"Error: {str(e)}"
 
-def main():
-    if not YOUTUBE_API_KEY:
-        print("Error: YouTube API key not found in environment variables")
-        return
+# def main():
+#     if not YOUTUBE_API_KEY:
+#         print("Error: YouTube API key not found in environment variables")
+#         return
 
-    youtube_url = input("Enter YouTube video URL: ")
-    result = get_transcript_with_timestamps(youtube_url)
-    print("\nVideo Information and Transcript:")
-    print(result)
+#     youtube_url = input("Enter YouTube video URL: ")
+#     result = get_transcript_with_timestamps(youtube_url)
+#     print("\nVideo Information and Transcript:")
+#     print(result)
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
