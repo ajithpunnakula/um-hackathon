@@ -1,4 +1,9 @@
 from flask import Flask, jsonify, request
+import sys
+import os
+
+# Add the api directory to Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from video_transcript import get_transcript_with_timestamps
 
 app = Flask(__name__)
