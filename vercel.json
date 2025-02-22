@@ -2,30 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/*.py",
+      "src": "api/index.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
-      "src": "/api/transcript",
-      "methods": ["POST", "OPTIONS"],
-      "dest": "api/index.py"
-    },
-    {
-      "src": "/api/url",
-      "methods": ["POST", "OPTIONS"],
-      "dest": "api/index.py"
-    },
-    {
-      "src": "/api",
-      "methods": ["GET"],
-      "dest": "api/index.py"
-    },
-    {
-      "src": "/",
-      "methods": ["GET"],
-      "dest": "api/index.py"
+      "src": "/(.*)",
+      "dest": "/api/index.py"
     }
   ]
 }
