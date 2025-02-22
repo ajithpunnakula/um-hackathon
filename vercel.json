@@ -8,7 +8,23 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
+      "src": "/api",
+      "methods": ["GET"],
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/",
+      "methods": ["GET"],
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/api/url",
+      "methods": ["POST"],
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/api/transcript",
+      "methods": ["POST"],
       "dest": "api/index.py"
     }
   ]
