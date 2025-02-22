@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request
-from .video_transcript import get_transcript_with_timestamps
+from video_transcript import get_transcript_with_timestamps
 
 app = Flask(__name__)
 
