@@ -12,9 +12,9 @@ app = Flask(__name__)
 def home():
     return jsonify({"message": "Hello from Flask on Vercel!"})
 
-@app.route("/", methods=['GET'])
-def root():
-    return jsonify({"message": "Welcome to the API"})
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 @app.route("/api/url", methods=['POST'])
 def process_url():
