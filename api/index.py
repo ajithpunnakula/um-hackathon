@@ -146,6 +146,5 @@ def get_transcript_with_timestamps(youtube_url):
 #     main()
 
 
-
 if __name__ == '__main__':
     app.run()
