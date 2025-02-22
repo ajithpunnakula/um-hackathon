@@ -2,11 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/video-transcript.py",
+      "src": "api/*.py",
       "use": "@vercel/python"
     }
   ],
