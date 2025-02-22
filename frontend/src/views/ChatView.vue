@@ -5,7 +5,7 @@
       <div class="max-w-4xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <i class="pi pi-youtube text-purple-600 text-xl"></i>
-          <h1 class="text-xl font-bold text-gray-900">ShortForm AI</h1>
+          <h1 class="text-xl font-bold text-gray-900">shortok.ai</h1>
         </div>
       </div>
     </header>
@@ -39,11 +39,14 @@
             <!-- Video Message -->
             <Card v-if="message.type === 'video'" class="hover:shadow-md transition-shadow">
               <template #content>
-                <div class="relative">
-                  <img :src="message.content.thumbnail" :alt="message.content.title" class="w-full h-48 object-cover rounded-lg" />
-                  <div class="absolute inset-0 flex items-center justify-center">
-                    <i class="pi pi-play text-white text-4xl opacity-80"></i>
-                  </div>
+                <div class="relative aspect-video">
+                  <iframe
+                    :src="`https://www.youtube.com/embed/${getVideoId(message.content.url)}`"
+                    class="w-full h-full rounded-lg"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                  ></iframe>
                 </div>
                 <h3 class="mt-3 text-lg font-semibold text-gray-900">{{ message.content.title }}</h3>
                 <p class="mt-1 text-sm text-gray-500">{{ message.content.url }}</p>
