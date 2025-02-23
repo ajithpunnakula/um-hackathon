@@ -221,13 +221,13 @@ Here is the transcript to analyze:
 
 def generate_ai_chat_response(chat_history):
     """
-    Generate an AI summary using Google's Gemini API.
+    Generate an AI response using Google's Gemini API.
     
     Args:
         chat_history (list): A list of dictionaries, where each dictionary contains a 'role' and 'content' key.
         
     Returns:
-        dict: Generated JSON summary or None if error occurs
+        str: Generated text response or None if error occurs
     """
     # Get API key and project ID from environment variables
     API_KEY = os.environ.get("GOOGLE_AI_STUDIO_API_KEY")
@@ -237,14 +237,13 @@ def generate_ai_chat_response(chat_history):
     if not API_KEY or not PROJECT_ID:
         raise ValueError("Please set the GOOGLE_AI_STUDIO_API_KEY and GOOGLE_AI_STUDIO_PROJECT_ID environment variables.")
 
-    # Define the prompt prefix
-
     # Combine the prefix with the input text
     prompt = chat_history
 
     # Construct the API request
     API_ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-001:generateContent?key={API_KEY}"
-
+    logger.info(f"API Endpoint: {API_ENDPOINT}")
+    logger.info(f"Prompt: {prompt}")
     request_body = {
         "contents": [
             {
@@ -259,8 +258,7 @@ def generate_ai_chat_response(chat_history):
             "temperature": 0.9,  # Adjust for creativity
             "topP": 1,
             "topK": 1,
-            "maxOutputTokens": 500,
-            "response_mime_type": "application/json"
+            "maxOutputTokens": 100
         },
         "safetySettings": [
             {
@@ -290,17 +288,8 @@ def generate_ai_chat_response(chat_history):
         # Parse the JSON response
         response_json = response.json()
 
-        # Extract the generated text
-        generated_text = response_json['candidates'][0]['content']['parts'][0]['text']
-
-        # Try to parse the generated text as JSON
-        try:
-            generated_json = json.loads(generated_text)
-            return generated_json
-        except json.JSONDecodeError:
-            logger.error("Error: The generated text is not valid JSON.")
-            logger.error(f"Generated Text: {generated_text}")
-            return None
+        # Extract and return the generated text directly
+        return response_json['candidates'][0]['content']['parts'][0]['text']
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Request failed: {e}")
@@ -490,6 +479,8 @@ def get_chat_response():
 
     try:
         logger.info("Received request to /api/chat")
+        # log the request body
+        logger.info(request.get_json())
         
         # Get text from request
         data = request.get_json()
@@ -500,7 +491,7 @@ def get_chat_response():
         chat_history = data['chat_history']
         logger.info("Processing chat history input")
 
-        # Generate AI summary
+        # Generate AI response
         logger.info("Generating AI Chat response")
         chat_response = generate_ai_chat_response(chat_history=chat_history)
         
@@ -511,11 +502,11 @@ def get_chat_response():
                 "message": "Failed to generate AI Chat response"
             }), 500
 
-        # Return the summary
+        # Return the response
         logger.info("Successfully generated Chat response")
         response = jsonify({
             "status": "success",
-            "chat_response": chat_response
+            "response": chat_response  # Return the text response directly
         })
         
         # Add CORS headers to the response
@@ -525,7 +516,7 @@ def get_chat_response():
         return response
 
     except Exception as e:
-        logger.error(f"Error in summarize_text: {str(e)}")
+        logger.error(f"Error in get_chat_response: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # if __name__ == '__main__':
