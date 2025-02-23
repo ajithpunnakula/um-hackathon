@@ -1,7 +1,7 @@
 # Shortok - AI-Powered Video Learning Assistant
 
 🚀 **Try it now: [shortok.xyz](https://shortok.xyz/)**  
-📺 **Watch Demo: [YouTube Demo](https://youtu.be/c4-i-kFc3SQ)**
+📺 **Watch Demo: [YouTube Demo](https://www.youtube.com/watch?v=PohdPJGhvww)**
 
 Transform long videos into bite-sized, interactive learning experiences. Our AI-powered tool helps you extract key insights and engage with educational content more effectively.
 
