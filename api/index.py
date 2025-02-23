@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 import os
 import logging
+from apify_client import ApifyClient
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -8,9 +9,12 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-@app.route("/api", methods=['GET'])
-def home():
-    return jsonify({"message": "Hello from Flask on Vercel!"})
+# Get Apify API token from environment variables
+APIFY_API_TOKEN = os.getenv('APIFY_API_TOKEN')
+
+@app.route('/api')
+def hello():
+    return jsonify({"message": "Welcome to YouTube Transcript API!"})
 
 @app.route('/favicon.ico')
 def favicon():
@@ -18,151 +22,75 @@ def favicon():
 
 @app.route("/api/url", methods=['POST'])
 def process_url():
-    data = request.get_json()
-    
-    if not data or 'url' not in data:
-        return jsonify({"error": "URL is required"}), 400
-        
-    url = data['url']
-    
-    # Return the processed URL
+    url = request.json.get('url')
+    if not url:
+        return jsonify({
+            "error": "URL is required"
+        }), 400
     return jsonify({
-        "status": "success",
-        "url": url,
         "message": f"Successfully received URL: {url}"
     })
 
-@app.route("/api/transcript", methods=['POST'])
-def get_transcript():
-    logger.info("Received request to /api/transcript")
-    logger.info(f"Request headers: {dict(request.headers)}")
-    
+@app.route("/api/youtube", methods=['POST'])
+def get_youtube_data():
     try:
-        data = request.get_json()
-        logger.info(f"Request data: {data}")
+        logger.info("Received request to /api/youtube")
         
+        if not APIFY_API_TOKEN:
+            logger.error("Apify API token not found in environment variables")
+            return jsonify({"error": "Apify API token not configured"}), 500
+
+        # Get URL from request
+        data = request.get_json()
         if not data or 'url' not in data:
             logger.error("No URL provided in request")
             return jsonify({"error": "YouTube URL is required"}), 400
             
         youtube_url = data['url']
         logger.info(f"Processing URL: {youtube_url}")
-        
-        transcript = get_transcript_with_timestamps(youtube_url)
-        logger.info("Transcript processing completed")
-        
-        if isinstance(transcript, str) and transcript.startswith("Error"):
-            logger.error(f"Error processing transcript: {transcript}")
-            return jsonify({"error": transcript}), 400
-        
-        logger.info("Successfully processed transcript")
+
+        # Initialize the ApifyClient with your API token
+        client = ApifyClient(APIFY_API_TOKEN)
+
+        # Prepare the actor input
+        run_input = {
+            "video_urls": [{"url": youtube_url}]
+        }
+
+        logger.info("Starting Apify actor run")
+        # Run the actor with a timeout
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError
+        from functools import partial
+
+        def run_apify():
+            run = client.actor("fWIyRKfnKlxB1r5CX").call(run_input=run_input)
+            items = []
+            for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+                items.append(item)
+            return items
+
+        # Set timeout to 50 seconds (leaving 10 seconds buffer for Vercel's 60-second limit)
+        with ThreadPoolExecutor() as executor:
+            future = executor.submit(run_apify)
+            try:
+                items = future.result(timeout=50)
+            except TimeoutError:
+                logger.error("Operation timed out")
+                return jsonify({"error": "Operation timed out. Please try again."}), 504
+
+        if not items:
+            logger.error("No data returned from Apify")
+            return jsonify({"error": "No data found for the provided URL"}), 404
+
+        logger.info("Successfully fetched YouTube data")
         return jsonify({
             "status": "success",
-            "transcript": transcript
+            "data": items[0]  # Return the first item since we're only scraping one video
         })
+
     except Exception as e:
-        logger.error(f"Error in get_transcript: {str(e)}")
+        logger.error(f"Error in get_youtube_data: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-
-from youtube_transcript_api import YouTubeTranscriptApi
-from urllib.parse import urlparse, parse_qs
-from googleapiclient.discovery import build
-from datetime import datetime
-import os
-
-    # Get API key from environment variables
-YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
-
-def get_video_id(youtube_url):
-    """Extract video ID from YouTube URL"""
-    parsed_url = urlparse(youtube_url)
-    
-    if parsed_url.hostname in ('youtu.be', 'www.youtu.be'):
-        return parsed_url.path[1:]
-    if parsed_url.hostname in ('youtube.com', 'www.youtube.com'):
-        query_params = parse_qs(parsed_url.query)
-        return query_params.get('v', [None])[0]
-    return None
-
-def get_video_details(video_id):
-    """Get video details using YouTube Data API"""
-    try:
-        youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
-        
-        request = youtube.videos().list(
-            part="snippet,contentDetails,statistics",
-            id=video_id
-        )
-        response = request.execute()
-
-        if not response['items']:
-            return None
-
-        video_data = response['items'][0]
-        return {
-            'title': video_data['snippet']['title'],
-            'channel': video_data['snippet']['channelTitle'],
-            'published_at': video_data['snippet']['publishedAt'],
-            'view_count': video_data['statistics']['viewCount'],
-            'like_count': video_data['statistics'].get('likeCount', 'N/A'),
-            'description': video_data['snippet']['description']
-        }
-    except Exception as e:
-        print(f"Error fetching video details: {str(e)}")
-        return None
-
-def get_transcript_with_timestamps(youtube_url):
-    """Get transcript with timestamps and video details"""
-    try:
-        video_id = get_video_id(youtube_url)
-        if not video_id:
-            return "Invalid YouTube URL"
-
-        # Get video details
-        video_details = get_video_details(video_id)
-        if not video_details:
-            return "Could not fetch video details"
-
-        # Get transcript
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        
-        # Format output
-        output = []
-        output.append(f"Title: {video_details['title']}")
-        output.append(f"Channel: {video_details['channel']}")
-        output.append(f"Published: {datetime.fromisoformat(video_details['published_at'].replace('Z', '+00:00')).strftime('%Y-%m-%d')}")
-        output.append(f"Views: {video_details['view_count']}")
-        output.append(f"Likes: {video_details['like_count']}")
-        output.append("\nTranscript:")
-        
-        # Format transcript with timestamps
-        for entry in transcript:
-            time_in_seconds = int(entry['start'])
-            minutes = time_in_seconds // 60
-            seconds = time_in_seconds % 60
-            timestamp = f"{minutes:02d}:{seconds:02d}"
-            
-            output.append(f"[{timestamp}] {entry['text']}")
-        
-        return "\n".join(output)
-    
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-# def main():
-#     if not YOUTUBE_API_KEY:
-#         print("Error: YouTube API key not found in environment variables")
-#         return
-
-#     youtube_url = input("Enter YouTube video URL: ")
-#     result = get_transcript_with_timestamps(youtube_url)
-#     print("\nVideo Information and Transcript:")
-#     print(result)
-
-# if __name__ == "__main__":
-#     main()
-
-
 if __name__ == '__main__':
-    app.run()
+    app.run
