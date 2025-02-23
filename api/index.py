@@ -219,6 +219,101 @@ Here is the transcript to analyze:
         logger.error(f"An unexpected error occurred: {e}")
         return None
 
+def generate_ai_chat_response(chat_history):
+    """
+    Generate an AI summary using Google's Gemini API.
+    
+    Args:
+        chat_history (list): A list of dictionaries, where each dictionary contains a 'role' and 'content' key.
+        
+    Returns:
+        dict: Generated JSON summary or None if error occurs
+    """
+    # Get API key and project ID from environment variables
+    API_KEY = os.environ.get("GOOGLE_AI_STUDIO_API_KEY")
+    PROJECT_ID = os.environ.get("GOOGLE_AI_STUDIO_PROJECT_ID")
+
+    # Check if API key and project ID are set
+    if not API_KEY or not PROJECT_ID:
+        raise ValueError("Please set the GOOGLE_AI_STUDIO_API_KEY and GOOGLE_AI_STUDIO_PROJECT_ID environment variables.")
+
+    # Define the prompt prefix
+
+    # Combine the prefix with the input text
+    prompt = chat_history
+
+    # Construct the API request
+    API_ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-001:generateContent?key={API_KEY}"
+
+    request_body = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": prompt
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.9,  # Adjust for creativity
+            "topP": 1,
+            "topK": 1,
+            "maxOutputTokens": 500,
+            "response_mime_type": "application/json"
+        },
+        "safetySettings": [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            }
+        ]
+    }
+
+    try:
+        # Send the request
+        response = requests.post(API_ENDPOINT, json=request_body)
+        response.raise_for_status()  # Raise an exception for bad status codes
+
+        # Parse the JSON response
+        response_json = response.json()
+
+        # Extract the generated text
+        generated_text = response_json['candidates'][0]['content']['parts'][0]['text']
+
+        # Try to parse the generated text as JSON
+        try:
+            generated_json = json.loads(generated_text)
+            return generated_json
+        except json.JSONDecodeError:
+            logger.error("Error: The generated text is not valid JSON.")
+            logger.error(f"Generated Text: {generated_text}")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request failed: {e}")
+        return None
+    except (KeyError, IndexError) as e:
+        logger.error(f"Error processing the response: {e}")
+        logger.error(f"Raw Response: {response.text}")
+        return None
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        return None
+
+
 @app.route('/api')
 def hello():
     return jsonify({"message": "Welcome to YouTube Transcript API!"})
@@ -381,6 +476,56 @@ def get_shortok():
 
     except Exception as e:
         logger.error(f"Error in get_shortok: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/chat", methods=['POST', 'OPTIONS'])
+def get_chat_response():
+    # Handle preflight request
+    if request.method == 'OPTIONS':
+        response = jsonify({'message': 'OK'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+        return response
+
+    try:
+        logger.info("Received request to /api/chat")
+        
+        # Get text from request
+        data = request.get_json()
+        if not data or 'chat_history' not in data:
+            logger.error("No chat history provided in request")
+            return jsonify({"error": "Chat history is required"}), 400
+            
+        chat_history = data['chat_history']
+        logger.info("Processing chat history input")
+
+        # Generate AI summary
+        logger.info("Generating AI Chat response")
+        chat_response = generate_ai_chat_response(chat_history=chat_history)
+        
+        if chat_response is None:
+            logger.error("Failed to generate AI Chat response")
+            return jsonify({
+                "status": "error",
+                "message": "Failed to generate AI Chat response"
+            }), 500
+
+        # Return the summary
+        logger.info("Successfully generated Chat response")
+        response = jsonify({
+            "status": "success",
+            "chat_response": chat_response
+        })
+        
+        # Add CORS headers to the response
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+        return response
+
+    except Exception as e:
+        logger.error(f"Error in summarize_text: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # if __name__ == '__main__':
