@@ -21,17 +21,56 @@
               placeholder="Paste YouTube URL here..."
               class="flex-1"
               required
+              :disabled="messages.length > 0"
             />
             <Button
               type="submit"
               :loading="isProcessing"
-              :disabled="isProcessing"
+              :disabled="isProcessing || messages.length > 0"
               severity="primary"
             >
               {{ isProcessing ? 'Processing...' : 'Transform' }}
             </Button>
           </div>
         </form>
+
+        <!-- Reset Button (Floating) -->
+        <Button
+          v-if="messages.length > 0"
+          icon="pi pi-refresh"
+          severity="secondary"
+          class="fixed bottom-6 right-6 !w-12 !h-12 !rounded-full shadow-lg hover:shadow-xl transition-shadow"
+          aria-label="Reset Chat"
+          @click="showResetDialog = true"
+        />
+
+        <!-- Reset Confirmation Dialog -->
+        <Dialog
+          v-model:visible="showResetDialog"
+          modal
+          header="Reset Chat"
+          :style="{ width: '350px' }"
+          :closable="false"
+        >
+          <p class="m-0">
+            Do you really want to reset the chat? This will clear all messages and analysis.
+          </p>
+          <template #footer>
+            <Button
+              label="No"
+              icon="pi pi-times"
+              @click="showResetDialog = false"
+              text
+            />
+            <Button
+              label="Yes"
+              icon="pi pi-check"
+              @click="resetChat"
+              severity="danger"
+              autofocus
+            />
+          </template>
+        </Dialog>
 
         <!-- Message Thread -->
         <div class="space-y-6">
@@ -48,8 +87,17 @@
                     allowfullscreen
                   ></iframe>
                 </div>
-                <h3 class="mt-3 text-lg font-semibold text-gray-900">{{ message.content.title }}</h3>
-                <p class="mt-1 text-sm text-gray-500">{{ message.content.url }}</p>
+                <div class="mt-3">
+                  <h3 class="text-lg font-semibold text-gray-900">{{ message.content.title }}</h3>
+                  <div class="mt-2 flex items-center text-sm text-gray-500">
+                    <span class="font-medium text-gray-700">{{ message.content.channelName }}</span>
+                    <span class="mx-2">•</span>
+                    <span>{{ message.content.channelSubscription }}</span>
+                    <span class="mx-2">•</span>
+                    <span>{{ message.content.views }}</span>
+                  </div>
+                  <p class="mt-1 text-sm text-gray-500">Posted {{ message.content.postDate }}</p>
+                </div>
               </template>
             </Card>
 
@@ -57,7 +105,7 @@
             <Card v-if="message.type === 'videoAnalysis'" class="bg-white">
               <template #content>
                 <TabView>
-                  <TabPanel header="Key Takeaways">
+                  <TabPanel header="Key Points">
                     <div class="bg-purple-50 rounded-lg p-4">
                       <h3 class="text-lg font-semibold text-purple-900">Key Points</h3>
                       <ul class="mt-2 space-y-2">
@@ -68,19 +116,55 @@
                     </div>
                   </TabPanel>
                   
-                  <TabPanel header="Summary">
+                  <TabPanel header="Overview">
+                    <div class="p-4">
+                      <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Brief Overview</h3>
+                        <p class="text-gray-700">{{ message.content.briefOverview }}</p>
+                      </div>
+                      <div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Summary</h3>
+                        <p class="text-gray-700 whitespace-pre-line">{{ message.content.summaryText }}</p>
+                      </div>
+                    </div>
+                  </TabPanel>
+
+                  <TabPanel header="Full Summary">
                     <div class="p-4">
                       <h3 class="text-lg font-semibold text-gray-900 mb-3">Full Summary</h3>
                       <p class="text-gray-700 whitespace-pre-line">{{ message.content.summary }}</p>
                     </div>
                   </TabPanel>
                   
+                  <TabPanel header="Detailed">
+                    <div class="p-4">
+                      <h3 class="text-lg font-semibold text-gray-900 mb-3">Detailed Explanation</h3>
+                      <div class="max-h-96 overflow-y-auto">
+                        <p class="text-gray-700 whitespace-pre-line">{{ message.content.detailedExplanation }}</p>
+                      </div>
+                    </div>
+                  </TabPanel>
+
                   <TabPanel header="Transcript">
                     <div class="p-4">
                       <h3 class="text-lg font-semibold text-gray-900 mb-3">Full Transcript</h3>
                       <div class="max-h-96 overflow-y-auto">
-                        <p class="text-gray-700 whitespace-pre-line">{{ message.content.transcript }}</p>
+                        <div v-for="(entry, index) in message.content.transcriptWithTimestamps" :key="index" class="mb-4">
+                          <div class="text-sm font-medium text-gray-500 mb-1">{{ entry.timestamp }}</div>
+                          <p class="text-gray-700">{{ entry.text }}</p>
+                        </div>
                       </div>
+                    </div>
+                  </TabPanel>
+
+                  <TabPanel header="Reflection">
+                    <div class="p-4">
+                      <h3 class="text-lg font-semibold text-gray-900 mb-3">Reflection Questions</h3>
+                      <ul class="mt-2 space-y-3">
+                        <li v-for="(question, index) in message.content.reflectionQuestions" :key="index" class="text-gray-700">
+                          {{ index + 1 }}. {{ question }}
+                        </li>
+                      </ul>
                     </div>
                   </TabPanel>
                 </TabView>
@@ -89,7 +173,7 @@
 
             <!-- Shorts Message -->
             <div v-if="message.type === 'shorts'" class="space-y-4">
-              <h3 class="text-lg font-semibold text-gray-900">Generated Shorts</h3>
+              <h3 class="text-lg font-semibold text-gray-900">Key Moments</h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 relative">
                 <!-- Play Shorts Overlay -->
                 <div 
@@ -99,7 +183,7 @@
                 >
                   <div class="text-center">
                     <i class="pi pi-play-circle text-white text-6xl mb-2"></i>
-                    <div class="text-white text-xl font-semibold">Play Shorts</div>
+                    <div class="text-white text-xl font-semibold">Play Key Moments</div>
                   </div>
                 </div>
                 
@@ -107,7 +191,7 @@
                   <template #content>
                     <div class="relative aspect-video">
                       <iframe
-                        :src="`https://www.youtube.com/embed/${getVideoId(short.videoUrl)}?enablejsapi=1`"
+                        :src="`https://www.youtube.com/embed/${getVideoId(short.videoUrl)}?enablejsapi=1&start=${short.startTime}`"
                         class="w-full h-full rounded-t-lg"
                         :class="{'opacity-50': isPlayingShorts && currentShortIndex !== index}"
                         frameborder="0"
@@ -121,7 +205,8 @@
                         <i class="pi pi-clock mr-1"></i>
                         {{ formatDuration(short.startTime, short.endTime) }}
                       </div>
-                      <h4 class="font-medium text-gray-900">{{ short.title }}</h4>
+                      <h4 class="font-medium text-gray-900 mb-2">{{ short.title }}</h4>
+                      <p class="text-sm text-gray-600">{{ short.justification }}</p>
                     </div>
                   </template>
                 </Card>
@@ -173,6 +258,7 @@ import Button from 'primevue/button'
 import Card from 'primevue/card'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
+import Dialog from 'primevue/dialog'
 import { useMainStore } from '../stores/main'
 
 const url = ref('')
@@ -180,6 +266,7 @@ const isProcessing = ref(false)
 const messages = ref([])
 const newMessage = ref('')
 const store = useMainStore()
+const showResetDialog = ref(false)
 
 // Add these new refs
 const isPlayingShorts = ref(false)
@@ -205,16 +292,21 @@ const handleSubmit = async () => {
 
   try {
     // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    await new Promise(resolve => setTimeout(resolve, 100))
+    const data = await store.processVideo(videoUrl)
 
     // Add video card
     messages.value.push({
       id: Date.now().toString(),
       type: 'video',
       content: {
-        title: 'How to Build a Successful Startup',
-        thumbnail: 'https://i.ytimg.com/vi/sample/maxresdefault.jpg',
-        url: videoUrl
+        title: data.data.videoTitle,
+        thumbnail: `https://img.youtube.com/vi/${getVideoId(data.data.url)}/maxresdefault.jpg`,
+        url: data.data.url,
+        channelName: data.data.channelName,
+        channelSubscription: data.data.channelSubscription,
+        views: data.data.views,
+        postDate: data.data.videoPostDate
       }
     })
 
@@ -223,71 +315,32 @@ const handleSubmit = async () => {
       id: Date.now().toString(),
       type: 'videoAnalysis',
       content: {
-        takeaways: [
-          'Start with a clear problem statement',
-          'Focus on customer validation early',
-          'Build a minimum viable product',
-          'Iterate based on user feedback',
-          'Maintain a sustainable growth rate'
-        ],
-        summary: 'This comprehensive guide covers the essential steps to building a successful startup, from initial ideation to scaling. The video emphasizes the importance of customer-focused development and iterative improvement based on real feedback. The presenter walks through each stage of startup development, highlighting common pitfalls to avoid and sharing practical strategies for success.',
-        transcript: `
-00:00 - Introduction to startup fundamentals
-02:15 - Identifying market opportunities
-  - Understanding customer pain points
-  - Market size evaluation
-  - Competitive analysis
-05:30 - Customer validation techniques
-  - Interview strategies
-  - Feedback collection methods
-  - Iterative learning process
-08:45 - Building MVP strategies
-  - Feature prioritization
-  - Development timeline
-  - Resource allocation
-12:00 - Growth and scaling approaches
-  - Marketing channels
-  - Team building
-  - Investment strategies
-15:30 - Common pitfalls to avoid
-  - Premature scaling
-  - Ignoring customer feedback
-  - Poor market fit
-18:45 - Conclusion and key takeaways
-        `.trim()
+        takeaways: data.summary.key_points,
+        summary: data.summary.full_video_summary,
+        transcript: data.data.transcript,
+        briefOverview: data.summary.brief_overview,
+        summaryText: data.summary.summary_text,
+        keyTakeaways: data.summary.key_takeaways,
+        reflectionQuestions: data.summary.reflection_questions,
+        importantTimestamps: data.summary.important_timestamps_and_key_points,
+        detailedExplanation: data.summary.detailed_explanation,
+        transcriptWithTimestamps: data.data.transcriptWithTimestamps
       }
     })
 
-    // Add shorts suggestions
+    // Add shorts suggestions based on timestamps
+    const shortsContent = data.summary.important_timestamps_and_key_points.map(timestamp => ({
+      title: timestamp.description,
+      videoUrl: data.data.url,
+      startTime: timestamp.start_time,
+      endTime: timestamp.end_time,
+      justification: timestamp.justification
+    }))
+
     messages.value.push({
       id: Date.now().toString(),
       type: 'shorts',
-      content: [
-        {
-          title: 'First Segment Highlight',
-          videoUrl: 'https://www.youtube.com/watch?v=wzFLZPE_gNk',
-          startTime: 30,
-          endTime: 40
-        },
-        {
-          title: 'Second Segment Analysis',
-          videoUrl: 'https://www.youtube.com/watch?v=wzFLZPE_gNk',
-          startTime: 100,
-          endTime: 110
-        },
-        {
-          title: 'Key Insights',
-          videoUrl: 'https://www.youtube.com/watch?v=wzFLZPE_gNk',
-          startTime: 150,
-          endTime: 160
-        },
-        {
-          title: 'Final Thoughts',
-          videoUrl: 'https://www.youtube.com/watch?v=wzFLZPE_gNk',
-          startTime: 200,
-          endTime: 210
-        }
-      ]
+      content: shortsContent
     })
 
   } catch (error) {
@@ -301,10 +354,11 @@ const handleSubmit = async () => {
   }
 }
 
-const handleSendMessage = () => {
+const handleSendMessage = async () => {
   if (!newMessage.value.trim()) return
 
-
+  console.log('handleSendMessage started', { message: newMessage.value })
+  
   const userMessage = {
     id: Date.now().toString(),
     type: 'user',
@@ -315,16 +369,30 @@ const handleSendMessage = () => {
   messages.value.push(userMessage)
   newMessage.value = ''
 
-  // Simulate AI response
-  setTimeout(() => {
+  try {
+    console.log('Calling store.sendChatMessage')
+    // Filter only videoAnalysis message
+    const videoAnalysis = messages.value.find(msg => msg.type === 'videoAnalysis')
+    const chatHistory = videoAnalysis ? [videoAnalysis] : []
+    const response = await store.sendChatMessage(chatHistory, userMessage.content)
+    console.log('Response received:', response)
+
     const aiMessage = {
       id: (Date.now() + 1).toString(),
       type: 'assistant',
-      content: "Based on the video content, I can explain more about that topic...",
+      content: response.response,
       timestamp: new Date()
     }
     messages.value.push(aiMessage)
-  }, 1000)
+  } catch (error) {
+    console.error('Error in handleSendMessage:', error)
+    messages.value.push({
+      id: (Date.now() + 1).toString(),
+      type: 'assistant',
+      content: "I apologize, but I'm having trouble processing your request right now. Please try again.",
+      timestamp: new Date()
+    })
+  }
 }
 
 const getVideoId = (url) => {
@@ -410,6 +478,21 @@ const handlePlayerStateChange = (event, index) => {
   if (event.data === YT.PlayerState.PLAYING && isPlayingShorts.value && currentShortIndex.value === index) {
     checkEndTime(event.target, index)
   }
+}
+
+const resetChat = () => {
+  messages.value = []
+  url.value = ''
+  isProcessing.value = false
+  isPlayingShorts.value = false
+  currentShortIndex.value = 0
+  players.value.forEach(player => {
+    if (player && player.destroy) {
+      player.destroy()
+    }
+  })
+  players.value = []
+  showResetDialog.value = false
 }
 
 // Add YouTube API script
