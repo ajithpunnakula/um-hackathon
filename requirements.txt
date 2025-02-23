@@ -4,3 +4,4 @@ youtube-transcript-api==0.6.3
 google-api-python-client==2.161.0
 urllib3==2.3.0
 apify-client==1.6.1
+flask-cors==4.0.0
